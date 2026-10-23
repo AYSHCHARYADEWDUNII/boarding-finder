@@ -1,7 +1,10 @@
 package com.boardingfinder.api.room;
 
+import com.boardingfinder.api.owner.OwnerAccount;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,9 +31,17 @@ public class RoomController {
         return roomService.findAll();
     }
 
+    @GetMapping("/{id}")
+    public RoomResponse findById(@PathVariable Long id) {
+        return roomService.findById(id);
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public RoomResponse create(@Valid @RequestBody CreateRoomRequest request) {
-        return roomService.create(request);
+    public RoomResponse create(
+            @Valid @RequestBody CreateRoomRequest request,
+            @AuthenticationPrincipal OwnerAccount owner
+    ) {
+        return roomService.create(request, owner);
     }
 }

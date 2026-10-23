@@ -11,6 +11,7 @@ public record RoomResponse(
         String address,
         BigDecimal distanceToCampusKm,
         String imageUrl,
+        String boardingGender,
         String ownerName,
         LocalDateTime createdAt
 ) {
@@ -23,6 +24,9 @@ public record RoomResponse(
                 room.getAddress(),
                 room.getDistanceToCampusKm(),
                 room.getImageUrl(),
+                room.getBoardingGender() == null
+                        ? "UNSPECIFIED"
+                        : room.getBoardingGender().name(),
                 room.getOwnerName(),
                 room.getCreatedAt()
         );
