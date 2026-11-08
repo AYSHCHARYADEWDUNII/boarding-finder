@@ -6,7 +6,13 @@ export type Room = {
   address: string;
   distanceToCampusKm: number;
   imageUrl: string | null;
-  boardingGender: BoardingGender;
+  imageUrls: string[];
+  boardingFor: BoardingGender;
+  contactPhone: string | null;
+  contactWhatsapp: string | null;
+  contactEmail: string | null;
+  latitude: number | null;
+  longitude: number | null;
   ownerName: string;
   createdAt: string;
 };
@@ -16,16 +22,16 @@ export type BoardingGender = "BOYS" | "GIRLS" | "ANY" | "UNSPECIFIED";
 export type RoomFilters = {
   keyword: string;
   maxPrice: string;
-  maxDistance: number;
-  boardingGender: "ALL" | "BOYS" | "GIRLS";
+  maxDistance: string;
+  boardingFor: "ALL" | "BOYS" | "GIRLS";
   sort: string;
 };
 
 export const DEFAULT_FILTERS: RoomFilters = {
   keyword: "",
   maxPrice: "",
-  maxDistance: 50,
-  boardingGender: "ALL",
+  maxDistance: "",
+  boardingFor: "ALL",
   sort: "recommended",
 };
 
@@ -40,6 +46,14 @@ export function boardingGenderLabel(gender: BoardingGender) {
     default:
       return "Not specified";
   }
+}
+
+export function roomImageUrls(room: Pick<Room, "imageUrl" | "imageUrls">) {
+  return room.imageUrls?.length
+    ? room.imageUrls
+    : room.imageUrl
+      ? [room.imageUrl]
+      : [];
 }
 
 export function formatPrice(price: number) {

@@ -1,18 +1,45 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, House, MapPin } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { ArrowLeft, House, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Carousel } from "@/components/ui/carousel";
 import { ThemeMenu } from "@/components/theme-menu";
 import { fetchPublicRoom } from "@/lib/api";
 import {
   boardingGenderLabel,
   formatDistance,
   formatPrice,
+  roomImageUrls,
   type Room,
 } from "@/lib/rooms";
+
+const RoomMap = dynamic(
+  () => import("@/components/room-map").then((module) => module.RoomMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-72 animate-pulse rounded-xl bg-muted" aria-label="Loading map" />
+    ),
+  },
+);
 
 export default function RoomDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +69,8 @@ export default function RoomDetailsPage() {
     if (id) void loadRoom();
     return () => controller.abort();
   }, [id]);
+
+  const whatsappDigits = room?.contactWhatsapp?.replace(/\D/g, "");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -82,64 +111,163 @@ export default function RoomDetailsPage() {
             </Link>
           </section>
         ) : (
-          <article className="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
-            <div className="overflow-hidden rounded-2xl border bg-muted">
-              {room.imageUrl ? (
-                <img
-                  src={room.imageUrl}
-                  alt={`Boarding room: ${room.title}`}
-                  className="aspect-[4/3] w-full object-cover"
-                />
-              ) : (
-                <div
-                  className="grid aspect-[4/3] place-items-center text-muted-foreground"
-                  role="img"
-                  aria-label={`No photo available for ${room.title}`}
-                >
-                  <House className="size-16" strokeWidth={1.5} aria-hidden="true" />
+          <article className="mt-6 space-y-8">
+            {(() => {
+              const images = roomImageUrls(room);
+              return (
+                <section aria-label="Room photos">
+                  {images.length > 0 ? (
+                    <div className="relative grid aspect-[16/9] max-h-[34rem] grid-cols-1 gap-2 overflow-hidden rounded-2xl bg-muted sm:grid-cols-2">
+                      <img
+                        src={images[0]}
+                        alt={`${room.title}, photo 1`}
+                        className="size-full min-h-0 object-cover sm:row-span-2"
+                      />
+                      {images.slice(1, 3).map((imageUrl, index) => (
+                        <img
+                          key={`${imageUrl}-${index}`}
+                          src={imageUrl}
+                          alt={`${room.title}, photo ${index + 2}`}
+                          className="hidden size-full min-h-0 object-cover sm:block"
+                        />
+                      ))}
+                      <Dialog>
+                        <DialogTrigger
+                          className="absolute bottom-4 right-4 inline-flex h-9 items-center justify-center rounded-md border bg-background/95 px-3 text-sm font-medium shadow-sm transition-colors hover:bg-background"
+                        >
+                          See all photos ({images.length})
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogTitle className="mb-4 pr-10">
+                            Photos of {room.title}
+                          </DialogTitle>
+                          <DialogDescription className="sr-only">
+                            Browse all photos for this boarding.
+                          </DialogDescription>
+                          <Carousel images={images} title={room.title} />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  ) : (
+                    <div
+                      className="grid aspect-[16/9] place-items-center rounded-2xl border bg-muted text-muted-foreground"
+                      role="img"
+                      aria-label={`No photo available for ${room.title}`}
+                    >
+                      <House className="size-16" strokeWidth={1.5} aria-hidden="true" />
+                    </div>
+                  )}
+                </section>
+              );
+            })()}
+
+            <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
+              <div>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                      {room.title}
+                    </h1>
+                    <p className="mt-3 flex items-start gap-2 text-muted-foreground">
+                      <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                      {room.address}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">
+                    For {boardingGenderLabel(room.boardingFor).toLowerCase()}
+                  </Badge>
                 </div>
-              )}
-            </div>
 
-            <div className="rounded-2xl border bg-card p-5 sm:p-7">
-              <p className="text-sm font-medium text-primary">ROOM DETAILS</p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                {room.title}
-              </h1>
-              <p className="mt-3 flex items-start gap-2 text-muted-foreground">
-                <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                {room.address}
-              </p>
-              <p className="mt-3 inline-flex rounded-full bg-secondary px-3 py-1 text-sm font-medium text-secondary-foreground">
-                For {boardingGenderLabel(room.boardingGender).toLowerCase()}
-              </p>
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>About this room</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="whitespace-pre-line leading-7 text-muted-foreground">
+                      {room.description}
+                    </p>
+                  </CardContent>
+                </Card>
 
-              <div className="mt-6 rounded-xl bg-muted/70 p-4">
-                <p className="text-2xl font-semibold">
-                  {formatPrice(room.monthlyPrice)}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    {" "}
-                    / month
-                  </span>
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {formatDistance(room.distanceToCampusKm)} km from campus
-                </p>
+                {room.latitude !== null &&
+                  room.longitude !== null &&
+                  Number.isFinite(room.latitude) &&
+                  Number.isFinite(room.longitude) && (
+                    <section className="mt-6 space-y-3">
+                      <h2 className="text-lg font-semibold">Location</h2>
+                      <RoomMap
+                        latitude={room.latitude}
+                        longitude={room.longitude}
+                        title={room.title}
+                      />
+                    </section>
+                  )}
               </div>
 
-              <section className="mt-7">
-                <h2 className="font-semibold">About this room</h2>
-                <p className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">
-                  {room.description}
-                </p>
-              </section>
+              <aside className="space-y-5">
+                <Card>
+                  <CardContent className="pt-5">
+                    <p className="text-2xl font-semibold">
+                      {formatPrice(room.monthlyPrice)}
+                      <span className="text-sm font-normal text-muted-foreground">
+                        {" "}
+                        / month
+                      </span>
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {formatDistance(room.distanceToCampusKm)} km from campus
+                    </p>
+                    <div className="mt-5 border-t pt-4">
+                      <h2 className="font-semibold">Hosted by</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {room.ownerName}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <section className="mt-7 border-t pt-5">
-                <h2 className="font-semibold">Hosted by</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {room.ownerName}
-                </p>
-              </section>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Contact the owner</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-2">
+                    {room.contactPhone && (
+                      <Button render={<a href={`tel:${room.contactPhone}`} />}>
+                        <Phone className="size-4" /> Call
+                      </Button>
+                    )}
+                    {whatsappDigits && (
+                      <Button
+                        variant="outline"
+                        render={
+                          <a
+                            href={`https://wa.me/${whatsappDigits}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          />
+                        }
+                      >
+                        <MessageCircle className="size-4" /> WhatsApp
+                      </Button>
+                    )}
+                    {room.contactEmail && (
+                      <Button
+                        variant="outline"
+                        render={<a href={`mailto:${room.contactEmail}`} />}
+                      >
+                        <Mail className="size-4" /> Email
+                      </Button>
+                    )}
+                    {!room.contactPhone &&
+                      !room.contactWhatsapp &&
+                      !room.contactEmail && (
+                        <p className="text-sm text-muted-foreground">
+                          Contact details are not available for this listing.
+                        </p>
+                      )}
+                  </CardContent>
+                </Card>
+              </aside>
             </div>
           </article>
         )}

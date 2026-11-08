@@ -20,7 +20,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Slider } from "@/components/ui/slider";
 import type { RoomFilters } from "@/lib/rooms";
 
 type SearchFiltersProps = {
@@ -31,7 +30,7 @@ type SearchFiltersProps = {
 
 function isBoardingGenderFilter(
   value: string,
-): value is RoomFilters["boardingGender"] {
+): value is RoomFilters["boardingFor"] {
   return value === "ALL" || value === "BOYS" || value === "GIRLS";
 }
 
@@ -81,27 +80,19 @@ export function SearchFilters({
   );
 
   const distanceInput = (id: string) => (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <label htmlFor={id} className="text-sm font-medium">
-          Max distance
-        </label>
-        <span className="text-sm text-muted-foreground">
-          {filters.maxDistance} km
-        </span>
-      </div>
-      <Slider
+    <div className="space-y-2">
+      <label htmlFor={id} className="text-sm font-medium">
+        Max distance (km)
+      </label>
+      <Input
         id={id}
-        aria-label="Maximum distance in kilometers"
-        min={0}
-        max={50}
-        step={0.5}
-        value={[filters.maxDistance]}
-        onValueChange={(value) =>
-          update({
-            maxDistance: Array.isArray(value) ? value[0] : value,
-          })
-        }
+        type="number"
+        min="0"
+        step="any"
+        inputMode="decimal"
+        value={filters.maxDistance}
+        onChange={(event) => update({ maxDistance: event.target.value })}
+        placeholder="Any distance"
       />
     </div>
   );
@@ -138,10 +129,10 @@ export function SearchFilters({
         Boarding for
       </label>
       <Select
-        value={filters.boardingGender}
-        onValueChange={(boardingGender) => {
-          if (boardingGender && isBoardingGenderFilter(boardingGender)) {
-            update({ boardingGender });
+        value={filters.boardingFor}
+        onValueChange={(boardingFor) => {
+          if (boardingFor && isBoardingGenderFilter(boardingFor)) {
+            update({ boardingFor });
           }
         }}
       >
@@ -151,7 +142,7 @@ export function SearchFilters({
               ALL: "All",
               BOYS: "Boys",
               GIRLS: "Girls",
-            }[filters.boardingGender]}
+            }[filters.boardingFor]}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>

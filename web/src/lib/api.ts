@@ -11,8 +11,10 @@ export type Owner = {
 
 export type RoomInput = Omit<
   Room,
-  "id" | "ownerName" | "createdAt" | "boardingGender"
-> & { boardingGender: Exclude<BoardingGender, "UNSPECIFIED"> };
+  "id" | "ownerName" | "createdAt" | "distanceToCampusKm" | "imageUrl" | "boardingFor"
+> & {
+  boardingFor: Exclude<BoardingGender, "UNSPECIFIED" | "ANY">;
+};
 
 async function csrfToken() {
   const response = await fetch(`${apiBaseUrl}/api/auth/csrf`, {

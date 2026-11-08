@@ -23,7 +23,7 @@ const FILTER_KEYS = [
   "q",
   "maxPrice",
   "maxDistance",
-  "boardingGender",
+  "boardingFor",
   "sort",
   "page",
 ] as const;
@@ -32,22 +32,21 @@ function filtersFromUrl(): { filters: RoomFilters; page: number } {
   const params = new URLSearchParams(window.location.search);
   const price = params.get("maxPrice") ?? "";
   const distanceParam = params.get("maxDistance");
-  const distance = distanceParam === null ? Number.NaN : Number(distanceParam);
+  const distance = distanceParam?.trim() ? Number(distanceParam) : Number.NaN;
   const page = Number(params.get("page"));
 
   return {
     filters: {
       keyword: params.get("q") ?? "",
       maxPrice: price && Number(price) >= 0 ? price : "",
-      maxDistance:
-        Number.isFinite(distance) && distance >= 0
-          ? Math.min(distance, 50)
-          : DEFAULT_FILTERS.maxDistance,
-      boardingGender: ["ALL", "BOYS", "GIRLS"].includes(
-        params.get("boardingGender") ?? "",
+      maxDistance: Number.isFinite(distance) && distance >= 0
+        ? String(distance)
+        : DEFAULT_FILTERS.maxDistance,
+      boardingFor: ["ALL", "BOYS", "GIRLS"].includes(
+        params.get("boardingFor") ?? "",
       )
-        ? (params.get("boardingGender") as RoomFilters["boardingGender"])
-        : DEFAULT_FILTERS.boardingGender,
+        ? (params.get("boardingFor") as RoomFilters["boardingFor"])
+        : DEFAULT_FILTERS.boardingFor,
       sort: ["recommended", "price-asc", "price-desc", "distance"].includes(
         params.get("sort") ?? "",
       )
@@ -66,11 +65,11 @@ function writeUrl(filters: RoomFilters, page: number) {
   if (filters.maxPrice && Number(filters.maxPrice) >= 0) {
     url.searchParams.set("maxPrice", filters.maxPrice);
   }
-  if (filters.maxDistance !== DEFAULT_FILTERS.maxDistance) {
-    url.searchParams.set("maxDistance", String(filters.maxDistance));
+  if (filters.maxDistance && Number(filters.maxDistance) >= 0) {
+    url.searchParams.set("maxDistance", filters.maxDistance);
   }
-  if (filters.boardingGender !== DEFAULT_FILTERS.boardingGender) {
-    url.searchParams.set("boardingGender", filters.boardingGender);
+  if (filters.boardingFor !== DEFAULT_FILTERS.boardingFor) {
+    url.searchParams.set("boardingFor", filters.boardingFor);
   }
   if (filters.sort !== DEFAULT_FILTERS.sort) {
     url.searchParams.set("sort", filters.sort);
@@ -175,10 +174,11 @@ export default function HomePage() {
       return (
         textMatch &&
         room.monthlyPrice <= maxPrice &&
-        room.distanceToCampusKm <= appliedFilters.maxDistance &&
-        (appliedFilters.boardingGender === "ALL" ||
-          room.boardingGender === "ANY" ||
-          room.boardingGender === appliedFilters.boardingGender) &&
+        (!appliedFilters.maxDistance ||
+          room.distanceToCampusKm <= Number(appliedFilters.maxDistance)) &&
+        (appliedFilters.boardingFor === "ALL" ||
+          room.boardingFor === "ANY" ||
+          room.boardingFor === appliedFilters.boardingFor) &&
         (!showFavorites || favoriteIds.includes(room.id))
       );
     });

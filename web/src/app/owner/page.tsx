@@ -11,14 +11,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { ThemeMenu } from "@/components/theme-menu";
 import { boardingGenderLabel, formatPrice } from "@/lib/rooms";
 
-type OwnerRoomForm = Omit<RoomInput, "boardingGender"> & {
-  boardingGender: Exclude<BoardingGender, "UNSPECIFIED"> | "";
+type OwnerRoomForm = Omit<
+  RoomInput,
+  "boardingFor" | "latitude" | "longitude"
+> & {
+  boardingFor: Exclude<BoardingGender, "UNSPECIFIED" | "ANY"> | "";
+  latitude: number;
+  longitude: number;
 };
 
 function isOwnerBoardingGender(
   value: string,
-): value is OwnerRoomForm["boardingGender"] {
-  return value === "" || value === "BOYS" || value === "GIRLS" || value === "ANY";
+): value is OwnerRoomForm["boardingFor"] {
+  return value === "" || value === "BOYS" || value === "GIRLS";
 }
 
 const emptyRoom: OwnerRoomForm = {
@@ -26,9 +31,13 @@ const emptyRoom: OwnerRoomForm = {
   description: "",
   monthlyPrice: 0,
   address: "",
-  distanceToCampusKm: 0,
-  imageUrl: "",
-  boardingGender: "",
+  imageUrls: [],
+  boardingFor: "",
+  contactPhone: "",
+  contactWhatsapp: "",
+  contactEmail: "",
+  latitude: 6.9022,
+  longitude: 79.8612,
 };
 
 function roomToInput(room: Room): OwnerRoomForm {
@@ -37,10 +46,20 @@ function roomToInput(room: Room): OwnerRoomForm {
     description: room.description,
     monthlyPrice: room.monthlyPrice,
     address: room.address,
-    distanceToCampusKm: room.distanceToCampusKm,
-    imageUrl: room.imageUrl ?? "",
-    boardingGender:
-      room.boardingGender === "UNSPECIFIED" ? "" : room.boardingGender,
+    imageUrls: room.imageUrls?.length
+      ? room.imageUrls
+      : room.imageUrl
+        ? [room.imageUrl]
+        : [],
+    boardingFor:
+      room.boardingFor === "BOYS" || room.boardingFor === "GIRLS"
+        ? room.boardingFor
+        : "",
+    contactPhone: room.contactPhone ?? "",
+    contactWhatsapp: room.contactWhatsapp ?? "",
+    contactEmail: room.contactEmail ?? "",
+    latitude: room.latitude ?? 6.9022,
+    longitude: room.longitude ?? 79.8612,
   };
 }
 
@@ -139,12 +158,12 @@ export default function OwnerPage() {
 
   async function submitRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.boardingGender) {
+    if (!form.boardingFor) {
       setError("Choose who this boarding is for.");
       return;
     }
-    if (!form.imageUrl) {
-      setError("Upload a photo of the boarding before publishing.");
+    if (form.imageUrls.length === 0) {
+      setError("Upload at least one photo of the boarding before publishing.");
       return;
     }
     setBusy(true);
@@ -155,9 +174,9 @@ export default function OwnerPage() {
         {
           ...form,
           monthlyPrice: Number(form.monthlyPrice),
-          distanceToCampusKm: Number(form.distanceToCampusKm),
-          imageUrl: form.imageUrl || null,
-          boardingGender: form.boardingGender,
+          latitude: Number(form.latitude),
+          longitude: Number(form.longitude),
+          boardingFor: form.boardingFor,
         },
         editingId ?? undefined,
       );
@@ -224,15 +243,32 @@ export default function OwnerPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  async function uploadPhoto(file: File | undefined) {
-    if (!file) return;
+  async function uploadPhotos(files: FileList | null) {
+    if (!files?.length) return;
+    const selectedFiles = Array.from(files);
+    if (form.imageUrls.length + selectedFiles.length > 10) {
+      setError("You can upload up to 10 photos per listing.");
+      return;
+    }
+    const oversizedFile = selectedFiles.find(
+      (file) => file.size > 5 * 1024 * 1024,
+    );
+    if (oversizedFile) {
+      setError(`${oversizedFile.name} is over the 5 MB photo limit.`);
+      return;
+    }
     setError("");
     setNotice("");
     setPhotoUploading(true);
     try {
-      const imageUrl = await uploadOwnerRoomPhoto(file);
-      updateForm("imageUrl", imageUrl);
-      setNotice("Photo uploaded. Save the listing to publish it.");
+      for (const file of selectedFiles) {
+        const imageUrl = await uploadOwnerRoomPhoto(file);
+        setForm((current) => ({
+          ...current,
+          imageUrls: [...current.imageUrls, imageUrl],
+        }));
+      }
+      setNotice("Photos uploaded. Save the listing to publish them.");
     } catch (uploadError) {
       setError(
         uploadError instanceof Error
@@ -298,7 +334,7 @@ export default function OwnerPage() {
                 onSubmit={submitRoom}
                 className="mt-5 grid gap-4 sm:grid-cols-2"
               >
-                <label className="space-y-2 text-sm font-medium sm:col-span-2">
+                <label className="space-y-2.5 text-sm font-medium sm:col-span-2">
                   Listing title
                   <Input
                     required
@@ -308,7 +344,7 @@ export default function OwnerPage() {
                     placeholder="A bright room near campus"
                   />
                 </label>
-                <label className="space-y-2 text-sm font-medium sm:col-span-2">
+                <label className="space-y-2.5 text-sm font-medium sm:col-span-2">
                   Description
                   <Textarea
                     required
@@ -320,7 +356,7 @@ export default function OwnerPage() {
                     placeholder="Describe the room, amenities, and house rules"
                   />
                 </label>
-                <label className="space-y-2 text-sm font-medium">
+                <label className="space-y-2.5 text-sm font-medium sm:col-span-2">
                   Monthly price (Rs.)
                   <Input
                     required
@@ -333,28 +369,43 @@ export default function OwnerPage() {
                     }
                   />
                 </label>
-                <label className="space-y-2 text-sm font-medium">
-                  Distance to campus (km)
+                <label className="space-y-2.5 text-sm font-medium">
+                  Latitude
                   <Input
                     required
                     type="number"
-                    min="0"
+                    min="-90"
+                    max="90"
                     step="any"
-                    value={form.distanceToCampusKm || ""}
+                    value={form.latitude}
                     onChange={(event) =>
-                      updateForm("distanceToCampusKm", Number(event.target.value))
+                      updateForm("latitude", Number(event.target.value))
                     }
                   />
                 </label>
-                <label className="space-y-2 text-sm font-medium sm:col-span-2">
+                <label className="space-y-2.5 text-sm font-medium">
+                  Longitude
+                  <Input
+                    required
+                    type="number"
+                    min="-180"
+                    max="180"
+                    step="any"
+                    value={form.longitude}
+                    onChange={(event) =>
+                      updateForm("longitude", Number(event.target.value))
+                    }
+                  />
+                </label>
+                <label className="space-y-2.5 text-sm font-medium sm:col-span-2">
                   Boarding for
                   <select
                     required
-                    value={form.boardingGender}
+                    value={form.boardingFor}
                     onChange={(event) => {
                       const value = event.target.value;
                       if (isOwnerBoardingGender(value)) {
-                        updateForm("boardingGender", value);
+                        updateForm("boardingFor", value);
                       }
                     }}
                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
@@ -364,10 +415,9 @@ export default function OwnerPage() {
                     </option>
                     <option value="BOYS">Boys</option>
                     <option value="GIRLS">Girls</option>
-                    <option value="ANY">Boys and girls</option>
                   </select>
                 </label>
-                <label className="space-y-2 text-sm font-medium sm:col-span-2">
+                <label className="space-y-2.5 text-sm font-medium sm:col-span-2">
                   Address
                   <Input
                     required
@@ -377,59 +427,110 @@ export default function OwnerPage() {
                     placeholder="Street or neighborhood, city"
                   />
                 </label>
-                <div className="space-y-2 text-sm font-medium sm:col-span-2">
-                  <label htmlFor="room-photo">Boarding photo</label>
+                <label className="space-y-2.5 text-sm font-medium">
+                  Contact phone
+                  <Input
+                    type="tel"
+                    maxLength={40}
+                    value={form.contactPhone ?? ""}
+                    onChange={(event) =>
+                      updateForm("contactPhone", event.target.value)
+                    }
+                    placeholder="+94 77 123 4567"
+                  />
+                </label>
+                <label className="space-y-2.5 text-sm font-medium">
+                  WhatsApp number
+                  <Input
+                    type="tel"
+                    maxLength={40}
+                    value={form.contactWhatsapp ?? ""}
+                    onChange={(event) =>
+                      updateForm("contactWhatsapp", event.target.value)
+                    }
+                    placeholder="+94 77 123 4567"
+                  />
+                </label>
+                <label className="space-y-2.5 text-sm font-medium sm:col-span-2">
+                  Contact email
+                  <Input
+                    type="email"
+                    maxLength={254}
+                    value={form.contactEmail ?? ""}
+                    onChange={(event) =>
+                      updateForm("contactEmail", event.target.value)
+                    }
+                    placeholder="owner@example.com"
+                  />
+                </label>
+                <div className="space-y-2.5 text-sm font-medium sm:col-span-2">
+                  <label htmlFor="room-photos">Boarding photos</label>
                   <p className="font-normal text-muted-foreground">
-                    Upload a JPEG, PNG, or WebP photo up to 5 MB.
+                    Upload up to 10 JPEG, PNG, or WebP photos, each up to 5 MB.
                   </p>
-                  {form.imageUrl ? (
-                    <div className="relative max-w-sm overflow-hidden rounded-xl border">
-                      <img
-                        src={form.imageUrl}
-                        alt="Preview of the boarding photo"
-                        className="aspect-[4/3] w-full object-cover"
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="icon"
-                        className="absolute right-2 top-2 rounded-full"
-                        aria-label="Remove boarding photo"
-                        disabled={photoUploading}
-                        onClick={() => updateForm("imageUrl", "")}
-                      >
-                        <X className="size-4" />
-                      </Button>
+                  {form.imageUrls.length > 0 && (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {form.imageUrls.map((imageUrl, index) => (
+                        <div
+                          key={`${imageUrl}-${index}`}
+                          className="relative overflow-hidden rounded-xl border"
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={`Boarding photo ${index + 1}`}
+                            className="aspect-[4/3] w-full object-cover"
+                          />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="absolute right-2 top-2 rounded-full"
+                            aria-label={`Remove boarding photo ${index + 1}`}
+                            disabled={photoUploading}
+                            onClick={() =>
+                              updateForm(
+                                "imageUrls",
+                                form.imageUrls.filter(
+                                  (_, photoIndex) => photoIndex !== index,
+                                ),
+                              )
+                            }
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
+                  )}
+                  {form.imageUrls.length < 10 && (
                     <label
-                      htmlFor="room-photo"
-                      className="flex min-h-32 max-w-sm cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 px-4 text-center text-muted-foreground transition-colors hover:bg-muted/60"
+                      htmlFor="room-photos"
+                      className="flex min-h-24 max-w-sm cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 px-4 text-center text-muted-foreground transition-colors hover:bg-muted/60"
                     >
                       <ImagePlus className="size-7" />
                       <span>
                         {photoUploading
-                          ? "Uploading photo…"
-                          : "Choose a photo of this boarding"}
+                          ? "Uploading photos…"
+                          : "Choose boarding photos"}
                       </span>
                     </label>
                   )}
                   <Input
-                    id="room-photo"
+                    id="room-photos"
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    className={form.imageUrl ? "max-w-sm" : "sr-only"}
+                    multiple
+                    className="sr-only"
                     disabled={photoUploading}
                     aria-required="true"
-                    aria-describedby="room-photo-help"
+                    aria-describedby="room-photos-help"
                     onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      void uploadPhoto(file);
+                      void uploadPhotos(event.target.files);
                       event.target.value = "";
                     }}
                   />
-                  <span id="room-photo-help" className="sr-only">
-                    A photo is required before publishing this listing.
+                  <span id="room-photos-help" className="sr-only">
+                    At least one photo is required before publishing.
                   </span>
                 </div>
                 {error && (
@@ -506,7 +607,7 @@ export default function OwnerPage() {
                           </span>
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          For {boardingGenderLabel(room.boardingGender).toLowerCase()}
+                          For {boardingGenderLabel(room.boardingFor).toLowerCase()}
                         </p>
                       </div>
                       <div className="flex shrink-0 gap-2">
@@ -544,7 +645,7 @@ export default function OwnerPage() {
             </p>
             <form onSubmit={submitAuth} className="mt-6 space-y-4">
               {mode === "register" && (
-                <label className="block space-y-2 text-sm font-medium">
+                <label className="block space-y-2.5 text-sm font-medium">
                   Your name
                   <Input
                     required
@@ -555,7 +656,7 @@ export default function OwnerPage() {
                   />
                 </label>
               )}
-              <label className="block space-y-2 text-sm font-medium">
+              <label className="block space-y-2.5 text-sm font-medium">
                 Email address
                 <Input
                   required
@@ -565,7 +666,7 @@ export default function OwnerPage() {
                   onChange={(event) => setEmail(event.target.value)}
                 />
               </label>
-              <label className="block space-y-2 text-sm font-medium">
+              <label className="block space-y-2.5 text-sm font-medium">
                 Password
                 <Input
                   required

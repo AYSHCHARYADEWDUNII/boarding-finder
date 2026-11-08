@@ -15,6 +15,7 @@ import {
   boardingGenderLabel,
   formatDistance,
   formatPrice,
+  roomImageUrls,
   type Room,
 } from "@/lib/rooms";
 
@@ -31,14 +32,15 @@ export function RoomCard({
 }: RoomCardProps) {
   const router = useRouter();
   const [imageFailed, setImageFailed] = useState(false);
-  const showImage = Boolean(room.imageUrl) && !imageFailed;
+  const imageUrl = roomImageUrls(room)[0];
+  const showImage = Boolean(imageUrl) && !imageFailed;
 
   return (
     <Card className="flex h-full flex-col overflow-hidden rounded-xl shadow-sm transition-shadow hover:shadow-md">
       <div className="relative aspect-[4/3] bg-muted">
         {showImage ? (
           <img
-            src={room.imageUrl ?? undefined}
+            src={imageUrl}
             alt={`Boarding room: ${room.title}`}
             className="size-full object-cover"
             onError={() => setImageFailed(true)}
@@ -88,7 +90,7 @@ export function RoomCard({
           {formatDistance(room.distanceToCampusKm)} km from campus
         </Badge>
         <Badge variant="outline" className="ml-2 font-normal">
-          {boardingGenderLabel(room.boardingGender)}
+          {boardingGenderLabel(room.boardingFor)}
         </Badge>
       </CardContent>
       <CardFooter className="p-4 pt-3">

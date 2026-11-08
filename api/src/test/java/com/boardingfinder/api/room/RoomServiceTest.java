@@ -18,6 +18,13 @@ import static org.mockito.Mockito.when;
 class RoomServiceTest {
 
     @Test
+    void distanceToCampusUsesConfiguredCoordinates() {
+        RoomService service = new RoomService(mock(RoomRepository.class), 6.9022, 79.8612);
+
+        assertEquals(new BigDecimal("1.11"), service.distanceToCampus(6.9122, 79.8612));
+    }
+
+    @Test
     void createAssociatesListingWithAuthenticatedOwner() {
         RoomRepository repository = mock(RoomRepository.class);
         OwnerAccount owner = new OwnerAccount("Room Owner", "owner@example.com", "hash");
@@ -26,17 +33,27 @@ class RoomServiceTest {
                 " Description ",
                 new BigDecimal("42000"),
                 " Address ",
-                new BigDecimal("1.2"),
                 null,
-                BoardingGender.GIRLS
+                null,
+                BoardingGender.GIRLS,
+                "0771234567",
+                "0771234567",
+                "owner@example.com",
+                new BigDecimal("6.9022"),
+                new BigDecimal("79.8612"),
+                java.util.List.of("https://example.com/one.jpg", "https://example.com/two.jpg")
         );
         when(repository.save(any(Room.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        RoomResponse response = new RoomService(repository).create(request, owner);
+        RoomResponse response = new RoomService(repository, 6.9022, 79.8612).create(request, owner);
 
         assertEquals("Room title", response.title());
         assertEquals("Room Owner", response.ownerName());
-        assertEquals("GIRLS", response.boardingGender());
+        assertEquals("GIRLS", response.boardingFor());
+        assertEquals(new BigDecimal("0.00"), response.distanceToCampusKm());
+        assertEquals(java.util.List.of("https://example.com/one.jpg", "https://example.com/two.jpg"),
+                response.imageUrls());
+        assertEquals("0771234567", response.contactPhone());
         verify(repository).save(any(Room.class));
     }
 
@@ -49,15 +66,21 @@ class RoomServiceTest {
                 "Description",
                 new BigDecimal("42000"),
                 "Address",
-                new BigDecimal("1.2"),
                 null,
-                BoardingGender.BOYS
+                null,
+                BoardingGender.BOYS,
+                null,
+                null,
+                null,
+                new BigDecimal("6.90"),
+                new BigDecimal("79.86"),
+                java.util.List.of()
         );
         when(repository.findByIdAndOwnerAccount_Id(9L, owner.getId())).thenReturn(Optional.empty());
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> new RoomService(repository).update(9L, request, owner)
+                () -> new RoomService(repository, 6.9022, 79.8612).update(9L, request, owner)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
