@@ -1,7 +1,7 @@
 import type { BoardingGender, Room } from "@/lib/rooms";
 
 const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+  process.env.NODE_ENV === "production" ? "" : "http://localhost:8080";
 
 export type Owner = {
   id: number;

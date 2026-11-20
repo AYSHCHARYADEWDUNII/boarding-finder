@@ -72,9 +72,10 @@ Every new listing must specify whether it is for boys, girls, or boys and
 girls, and include at least one JPEG, PNG, or WebP photo. Owners can upload up
 to 10 photos per listing, with a 5 MB limit per photo. The public search page
 can filter by boarding availability, and room details provide a photo gallery
-and, when coordinates are available, an interactive map. Uploaded files are
-stored in `api/uploads/boarding-photos`; set `APP_UPLOAD_DIRECTORY` to use a
-persistent location for deployment. Set `APP_PUBLIC_BASE_URL` to the public
+and, when coordinates are available, an interactive map. Local development
+stores uploaded files in `api/uploads/boarding-photos`; set
+`APP_UPLOAD_DIRECTORY` to use another local folder. Production uses
+Cloudinary through the `prod` profile. Set `APP_PUBLIC_BASE_URL` to the local
 API URL when it differs from `http://localhost:8080`. Older sample listings
 without a saved choice or photo remain marked "Not specified" with a photo
 placeholder until real owner listings are added.
@@ -92,3 +93,51 @@ database. Sample rooms remain publicly viewable but are not attached to an
 owner account. The home page displays rooms returned by the API and shows a
 loading state, an API/database connection message, or an empty state when
 there are no listings.
+
+## Production setup
+
+### Vercel frontend
+
+Set `API_PROXY_TARGET` to the public Render backend URL, for example
+`https://boarding-finder-api.onrender.com`. Next.js sends browser requests to
+`/api/...`, and Vercel proxies those requests to Render. In production the
+frontend does not use a separate public API hostname. In local development it
+uses `http://localhost:8080`.
+
+### Render backend
+
+Deploy `api/` as a Docker web service using `api/Dockerfile`. Set
+`SPRING_PROFILES_ACTIVE=prod` so uploaded photos use Cloudinary instead of the
+container filesystem.
+
+Use a Neon PostgreSQL connection URL for `SPRING_DATASOURCE_URL`. Neon URLs
+often include `sslmode=require`. Set the remaining backend variables as listed
+below. Render provides `PORT` automatically; you do not need to set it
+manually unless you want to test the Docker image locally.
+
+### Environment variables
+
+Backend variables:
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `PORT` | HTTP port used by the server | `8080` |
+| `SPRING_DATASOURCE_URL` | PostgreSQL/Neon JDBC URL | `jdbc:postgresql://.../boardingfinder?sslmode=require` |
+| `SPRING_DATASOURCE_USERNAME` | Database username | Neon database username |
+| `SPRING_DATASOURCE_PASSWORD` | Database password | Neon database password |
+| `SPRING_PROFILES_ACTIVE` | Storage mode: `dev` locally or `prod` on Render | `prod` |
+| `APP_ALLOWED_ORIGINS` | Comma-separated frontend origins allowed by CORS | `https://your-app.vercel.app,http://localhost:3000` |
+| `APP_SESSION_COOKIE_SECURE` | Set secure session cookies behind HTTPS | `true` |
+| `APP_UPLOAD_DIRECTORY` | Local photo folder in development | `uploads/boarding-photos` |
+| `APP_PUBLIC_BASE_URL` | Local public API URL used for saved photo URLs | `http://localhost:8080` |
+| `APP_CAMPUS_LATITUDE` | Latitude used for distance calculations | `6.9022` |
+| `APP_CAMPUS_LONGITUDE` | Longitude used for distance calculations | `79.8612` |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary account cloud name | Your Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Cloudinary API key | Your Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret | Your Cloudinary API secret |
+
+Frontend variables:
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `API_PROXY_TARGET` | Render backend URL used by the `/api` rewrite | `https://boarding-finder-api.onrender.com` |

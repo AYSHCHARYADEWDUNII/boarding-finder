@@ -1,12 +1,11 @@
 package com.boardingfinder.api.owner;
 
 import jakarta.validation.constraints.NotNull;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -15,31 +14,24 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
-import java.util.UUID;
 
 @Validated
 @RestController
 @RequestMapping("/api/owner/rooms/images")
-@CrossOrigin(
-        origins = "${app.cors.allowed-origin:http://localhost:3000}",
-        allowCredentials = "true"
-)
 public class RoomPhotoController {
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-    private final Path uploadDirectory;
-    private final String publicBaseUrl;
+    private final PhotoStorage photoStorage;
 
-    public RoomPhotoController(
-            @Value("${app.upload.directory:uploads/boarding-photos}") String uploadDirectory,
-            @Value("${app.public-base-url:http://localhost:8080}") String publicBaseUrl
-    ) {
-        this.uploadDirectory = Path.of(uploadDirectory).toAbsolutePath().normalize();
-        this.publicBaseUrl = publicBaseUrl.replaceAll("/+$", "");
+    @Autowired
+    public RoomPhotoController(PhotoStorage photoStorage) {
+        this.photoStorage = photoStorage;
+    }
+
+    public RoomPhotoController(String uploadDirectory, String publicBaseUrl) {
+        this.photoStorage = new LocalPhotoStorage(uploadDirectory, publicBaseUrl);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -55,16 +47,8 @@ public class RoomPhotoController {
         }
 
         String extension = validatedExtension(file);
-        String filename = UUID.randomUUID() + extension;
         try {
-            Files.createDirectories(uploadDirectory);
-            Path destination = uploadDirectory.resolve(filename).normalize();
-            if (!destination.getParent().equals(uploadDirectory)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid photo filename");
-            }
-            try (var input = file.getInputStream()) {
-                Files.copy(input, destination);
-            }
+            return Map.of("imageUrl", photoStorage.store(file, extension));
         } catch (IOException exception) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
@@ -72,8 +56,6 @@ public class RoomPhotoController {
                     exception
             );
         }
-
-        return Map.of("imageUrl", publicBaseUrl + "/uploads/boarding-photos/" + filename);
     }
 
     private String validatedExtension(MultipartFile file) {
