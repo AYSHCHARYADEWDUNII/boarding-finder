@@ -3,6 +3,13 @@
 Boarding Finder helps university students discover rooms near campus. This
 repository contains a Spring Boot API and a Next.js web app.
 
+Students can search by keyword, monthly budget, distance from campus, and
+boarding availability, then sort and page through matching listings. Search
+filters are reflected in the URL, and favorite rooms are saved in the browser.
+Room details include photos, contact options, and a map when location
+coordinates are available. Owners can manage their listings through the owner
+portal.
+
 ## Phase 1: local setup
 
 ### Prerequisites
@@ -62,14 +69,15 @@ sessions use secure HTTP-only cookies and CSRF protection. For an HTTPS
 deployment, set `APP_SESSION_COOKIE_SECURE=true`.
 
 Every new listing must specify whether it is for boys, girls, or boys and
-girls, and include a JPEG, PNG, or WebP photo (up to 5 MB). The public search
-page includes a matching filter, and room cards and details display the
-choice and photo. Uploaded files are stored in `api/uploads/boarding-photos`;
-set `APP_UPLOAD_DIRECTORY` to use a persistent location for deployment. Set
-`APP_PUBLIC_BASE_URL` to the public API URL when it differs from
-`http://localhost:8080`. Older sample listings without a saved choice or photo
-remain marked "Not specified" with a photo placeholder until real owner
-listings are added.
+girls, and include at least one JPEG, PNG, or WebP photo. Owners can upload up
+to 10 photos per listing, with a 5 MB limit per photo. The public search page
+can filter by boarding availability, and room details provide a photo gallery
+and, when coordinates are available, an interactive map. Uploaded files are
+stored in `api/uploads/boarding-photos`; set `APP_UPLOAD_DIRECTORY` to use a
+persistent location for deployment. Set `APP_PUBLIC_BASE_URL` to the public
+API URL when it differs from `http://localhost:8080`. Older sample listings
+without a saved choice or photo remain marked "Not specified" with a photo
+placeholder until real owner listings are added.
 
 Authenticated owner endpoints are:
 
